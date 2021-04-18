@@ -1,5 +1,6 @@
 import datetime
 import sqlite3
+import encoder
 from functools import wraps
 
 from flask import Flask,g,render_template,redirect,request,session,url_for
@@ -58,7 +59,7 @@ def index():
         return item
 
     context = request.context
-    context['posts'] = map(fix, posts)
+    context['posts'] = map(fix, encoder.encode_qry(posts))
     return render_template('index.html', **context)
 
 @app.route("/<uname>/")
@@ -76,8 +77,9 @@ def users_posts(uname=None):
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
+
     a = query_db(query)
-    context['posts'] = map(fix, query_db(query))
+    context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
     return render_template('user_posts.html', **context)
 
 @app.route("/login/", methods=['GET', 'POST'])
@@ -163,7 +165,7 @@ def reset():
     if len(exists)<1:
         return render_template('no_email.html', **context)
     else:
-        context['email'] = email
+        context['email'] = encoder.encode(email)
         return render_template('sent_reset.html', **context)
 
 @app.route("/search/")
@@ -175,12 +177,15 @@ def search_page():
     #query = "SELECT posts.creator,posts.title,posts.content,users.username FROM posts JOIN users ON posts.creator=users.userid WHERE users.username LIKE '%%%s%%' ORDER BY date DESC LIMIT 10;"%(search)
     query = "SELECT username FROM users WHERE username LIKE '%%%s%%';"%(search)
     users = query_db(query)
+
     #for user in users:
         #post['content'] = '%s...'%(post['content'][:50])
-    context['users'] = users
-    context['query'] = search
+    context['users'] = encoder.encode_qry(users)
+    context['query'] = encoder.encode(search)
     return render_template('search_results.html', **context)
 
+
+# Todo: remove or protect reset token
 @app.route("/resetdb/<token>")
 def resetdb(token=None):
     if token=='secret42':

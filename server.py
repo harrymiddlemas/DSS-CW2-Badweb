@@ -1,11 +1,19 @@
 import datetime
 import sqlite3
 from functools import wraps
+from datetime import timedelta
+import random
 
 from flask import Flask,g,render_template,redirect,request,session,url_for
-
 app = Flask(__name__)
-app.secret_key = 'thisisabadsecretkey'
+
+context = ('local.crt', 'local.key')#certificate and key files
+
+
+app.secret_key = 't6w9z$C&F)J@NcRf'
+app.permanent_session_lifetime = timedelta(minutes=60)
+app.SESSION_COOKIE_HTTPONLY = True
+app.SESSION_COOKIE_SAMESITE='Strict'
 
 DATABASE = 'database.sqlite'
 
@@ -80,6 +88,8 @@ def users_posts(uname=None):
     context['posts'] = map(fix, query_db(query))
     return render_template('user_posts.html', **context)
 
+
+
 @app.route("/login/", methods=['GET', 'POST'])
 @std_context
 def login():
@@ -104,6 +114,7 @@ def login():
         if pass_match:
             session['userid'] = account[0]['userid']
             session['username'] = username
+            session.permanent = True
             return redirect(url_for('index'))
         else:
             # Return wrong password
@@ -192,4 +203,4 @@ def resetdb(token=None):
         return 'Nope',401
 
 if __name__ == '__main__':
-    app.run()
+    app.run(ssl_context=('server.crt', 'server.key'))

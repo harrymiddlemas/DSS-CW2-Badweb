@@ -70,17 +70,21 @@ def users_posts(uname=None):
         return 'No such user'
 
     cid = cid[0]['userid']
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC'%(cid)
-    
-    context = request.context
 
-    def fix(item):
-        item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
-        return item
+    if 'userid' in session.keys() and session['userid'] == cid:
 
-    a = query_db(query)
-    context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
-    return render_template('user_posts.html', **context)
+        query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC'%(cid)
+
+        context = request.context
+
+        def fix(item):
+            item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
+            return item
+
+        a = query_db(query)
+        context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
+        return render_template('user_posts.html', **context)
+    return 'Access Denied'
 
 @app.route("/login/", methods=['GET', 'POST'])
 @std_context

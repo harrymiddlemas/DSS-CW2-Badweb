@@ -102,17 +102,13 @@ def login():
     print(account)
     pass_match = len(account2)>0
 
-    if user_exists:
-        if pass_match:
+    if user_exists and pass_match:
             session['userid'] = account[0]['userid']
             session['username'] = username
             return redirect(url_for('index'))
-        else:
-            # Return wrong password
-            return redirect(url_for('login_fail', error='Wrong password'))
     else:
-        # Return no such user
-        return redirect(url_for('login_fail', error='No such user'))
+        # Username or password incorrect
+        return redirect(url_for('login_fail', error='Username or password incorrect'))
 
 @app.route("/loginfail/")
 @std_context

@@ -155,14 +155,9 @@ def reset():
     email = request.form.get('email','')
     if email=='':
         return render_template('reset_request.html')
+    context['email'] = encoder.encode(email)
 
-    query = "SELECT email FROM users WHERE email='%s'"%(email)
-    exists = query_db(query)
-    if len(exists)<1:
-        return render_template('no_email.html', **context)
-    else:
-        context['email'] = encoder.encode(email)
-        return render_template('sent_reset.html', **context)
+    return render_template('sent_reset.html', **context)
 
 @app.route("/search/")
 @std_context

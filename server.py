@@ -74,22 +74,21 @@ def index():
 @app.route("/<uname>/")
 @std_context
 def users_posts(uname=None):
-    cid = query_db('SELECT userid FROM users WHERE username="%s"' % (uname))
+    cid = query_db('SELECT userid FROM users WHERE username=(?)', (uname,))
     if len(cid) < 1:
         return 'No such user'
 
     cid = cid[0]['userid']
 
     if 'userid' in session.keys() and session['userid'] == cid:
-        query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % (cid)
-
+        query = 'SELECT date,title,content FROM posts WHERE creator=(?) ORDER BY date DESC'
+    
         context = request.context
 
         def fix(item):
             item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
             return item
 
-        a = query_db(query)
         context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
         return render_template('user_posts.html', **context)
     return 'Access Denied'
@@ -126,15 +125,13 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('login.html', **context)
 
-    query = "SELECT userid FROM users WHERE username='%s'" % (username)
-    account = query_db(query)
-    user_exists = len(account) > 0
+    query = "SELECT userid FROM users WHERE username=(?)"
+    account = query_db(query, (username,))
+    user_exists = len(account)>0
 
-    query = "SELECT userid FROM users WHERE username='%s' AND password='%s'" % (username, password)
-    print(query)
-    account2 = query_db(query)
-    print(account)
-    pass_match = len(account2) > 0
+    query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
+    account2 = query_db(query, (username, password))
+    pass_match = len(account2)>0
 
     if user_exists and pass_match:
         session['userid'] = account[0]['userid']
@@ -177,9 +174,8 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
-        userid, date, title, content)
-    insert = query_db(query)
+    query = "INSERT INTO posts (creator, date, title, content) VALUES ((?), (?), (?), (?))"
+    query_db(query, (userid, date, title, content))
 
     get_db().commit()
 
@@ -194,9 +190,14 @@ def reset():
     email = request.form.get('email', '')
     if email == '':
         return render_template('reset_request.html')
-    context['email'] = encoder.encode(email)
 
-    return render_template('sent_reset.html', **context)
+    query = "SELECT email FROM users WHERE email=(?)"
+    exists = query_db(query, (email,))
+    if len(exists)<1:
+        return render_template('no_email.html', **context)
+    else:
+        context['email'] = encoder.encode(email)
+        return render_template('sent_reset.html', **context)
 
 
 @app.route("/search/")
@@ -205,9 +206,11 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    # query = "SELECT posts.creator,posts.title,posts.content,users.username FROM posts JOIN users ON posts.creator=users.userid WHERE users.username LIKE '%%%s%%' ORDER BY date DESC LIMIT 10;"%(search)
-    query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % (search)
-    users = query_db(query)
+    wildcard = '%' + search + '%'
+    print(wildcard)
+
+    query = """SELECT username FROM users WHERE username LIKE (?);"""
+    users = query_db(query, (wildcard,))
 
     # for user in users:
     # post['content'] = '%s...'%(post['content'][:50])

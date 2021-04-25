@@ -15,7 +15,7 @@ db = sqlite3.connect(DATABASE)
 c = db.cursor()
 number_of_users = c.execute('SELECT COUNT(*) FROM USERS').fetchall()[0][0]
 users = c.execute('SELECT USERID FROM USERS').fetchall()
-# c.execute('ALTER TABLE USERS ADD USER_PATH_ID INTEGER(16)')
+c.execute('ALTER TABLE USERS ADD USER_PATH_ID INTEGER(16)')
 for i in range(number_of_users):
     userid = users[i][0]
     c.execute(

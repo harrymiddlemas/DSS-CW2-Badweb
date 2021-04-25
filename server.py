@@ -82,7 +82,7 @@ def users_posts(uname=None):
 
     if 'userid' in session.keys() and session['userid'] == cid:
         query = 'SELECT date,title,content FROM posts WHERE creator=(?) ORDER BY date DESC'
-    
+
         context = request.context
 
         def fix(item):
@@ -127,11 +127,11 @@ def login():
 
     query = "SELECT userid FROM users WHERE username=(?)"
     account = query_db(query, (username,))
-    user_exists = len(account)>0
+    user_exists = len(account) > 0
 
     query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
     account2 = query_db(query, (username, password))
-    pass_match = len(account2)>0
+    pass_match = len(account2) > 0
 
     if user_exists and pass_match:
         session['userid'] = account[0]['userid']
@@ -191,13 +191,8 @@ def reset():
     if email == '':
         return render_template('reset_request.html')
 
-    query = "SELECT email FROM users WHERE email=(?)"
-    exists = query_db(query, (email,))
-    if len(exists)<1:
-        return render_template('no_email.html', **context)
-    else:
-        context['email'] = encoder.encode(email)
-        return render_template('sent_reset.html', **context)
+    context['email'] = encoder.encode(email)
+    return render_template('sent_reset.html', **context)
 
 
 @app.route("/search/")

@@ -134,15 +134,14 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('login.html', **context)
 
-    query = "SELECT userid FROM users WHERE username='%s'"%(username)
-    account = query_db(query)
-    user_exists = len(account)>0
+    query = "SELECT userid FROM users WHERE username=(?)"
+    account = query_db(query, (username,))
+    user_exists = len(account) > 0
 
-    query = "SELECT userid FROM users WHERE username='%s' AND password='%s'"%(username, password)
-    print(query)
-    account2 = query_db(query)
+    query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
+    account2 = query_db(query, (username, password))
     print(account)
-    pass_match = len(account2)>0
+    pass_match = len(account2) > 0
 
     if user_exists:
         if pass_match:

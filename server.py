@@ -2,11 +2,20 @@ import datetime
 import sqlite3
 import encoder
 from functools import wraps
+from datetime import timedelta
+import random
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = 'thisisabadsecretkey'
+
+context = ('local.crt', 'local.key')#certificate and key files
+
+
+app.secret_key = 't6w9z$C&F)J@NcRf'
+app.permanent_session_lifetime = timedelta(minutes=60)
+app.SESSION_COOKIE_HTTPONLY = True
+app.SESSION_COOKIE_SAMESITE='Strict'
 
 DATABASE = 'database.sqlite'
 
@@ -125,18 +134,25 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('login.html', **context)
 
-    query = "SELECT userid FROM users WHERE username=(?)"
-    account = query_db(query, (username,))
-    user_exists = len(account) > 0
+    query = "SELECT userid FROM users WHERE username='%s'"%(username)
+    account = query_db(query)
+    user_exists = len(account)>0
 
-    query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
-    account2 = query_db(query, (username, password))
-    pass_match = len(account2) > 0
+    query = "SELECT userid FROM users WHERE username='%s' AND password='%s'"%(username, password)
+    print(query)
+    account2 = query_db(query)
+    print(account)
+    pass_match = len(account2)>0
 
-    if user_exists and pass_match:
-        session['userid'] = account[0]['userid']
-        session['username'] = username
-        return redirect(url_for('index'))
+    if user_exists:
+        if pass_match:
+            session['userid'] = account[0]['userid']
+            session['username'] = username
+            session.permanent = True
+            return redirect(url_for('index'))
+        else:
+            # Return wrong password
+            return redirect(url_for('login_fail', error='Wrong password'))
     else:
         # Username or password incorrect
         return redirect(url_for('login_fail', error='Username or password incorrect'))
@@ -213,4 +229,4 @@ def search_page():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(ssl_context=('server.crt', 'server.key'))

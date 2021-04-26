@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-import encoder
+import os
 from functools import wraps
 
 from flask import Flask,g,render_template,redirect,request,session,url_for
@@ -9,7 +9,6 @@ app = Flask(__name__)
 app.secret_key = 'thisisabadsecretkey'
 
 DATABASE = 'database.sqlite'
-
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -59,7 +58,7 @@ def index():
         return item
 
     context = request.context
-    context['posts'] = map(fix, encoder.encode_qry(posts))
+    context['posts'] = map(fix, posts)
     return render_template('index.html', **context)
 
 @app.route("/<uname>/")
@@ -77,9 +76,8 @@ def users_posts(uname=None):
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
-
     a = query_db(query)
-    context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
+    context['posts'] = map(fix, query_db(query))
     return render_template('user_posts.html', **context)
 
 @app.route("/login/", methods=['GET', 'POST'])
@@ -106,6 +104,7 @@ def login():
         if pass_match:
             session['userid'] = account[0]['userid']
             session['username'] = username
+            session['token'] = str(os.urandom(16))
             return redirect(url_for('index'))
         else:
             # Return wrong password
@@ -125,6 +124,7 @@ def login_fail():
 def logout():
     session.pop('userid', None)
     session.pop('username', None)
+    session.pop('token', None)
     return redirect('/')
 
 @app.route("/post/", methods=['GET', 'POST'])
@@ -137,17 +137,22 @@ def new_post():
     print(userid)
     context = request.context
 
+
     if request.method=='GET':
-        return render_template('new_post.html', **context)
+        session['token'] = str(os.urandom(16))
+        return render_template('new_post.html', token=session.get('token'), **context)
 
-    date = datetime.datetime.now().timestamp()
-    title = request.form.get('title')
-    content = request.form.get('content')
+    csrf = request.form.get('csrf')
 
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')"%(userid, date, title, content)
-    insert = query_db(query)
+    if csrf == session.get('token'):
+        date = datetime.datetime.now().timestamp()
+        title = request.form.get('title')
+        content = request.form.get('content')
+        query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
+        userid, date, title, content)
+        insert = query_db(query)
 
-    get_db().commit()
+        get_db().commit()
 
     return redirect('/')
 
@@ -165,7 +170,7 @@ def reset():
     if len(exists)<1:
         return render_template('no_email.html', **context)
     else:
-        context['email'] = encoder.encode(email)
+        context['email'] = email
         return render_template('sent_reset.html', **context)
 
 @app.route("/search/")
@@ -177,24 +182,21 @@ def search_page():
     #query = "SELECT posts.creator,posts.title,posts.content,users.username FROM posts JOIN users ON posts.creator=users.userid WHERE users.username LIKE '%%%s%%' ORDER BY date DESC LIMIT 10;"%(search)
     query = "SELECT username FROM users WHERE username LIKE '%%%s%%';"%(search)
     users = query_db(query)
-
     #for user in users:
         #post['content'] = '%s...'%(post['content'][:50])
-    context['users'] = encoder.encode_qry(users)
-    context['query'] = encoder.encode(search)
+    context['users'] = users
+    context['query'] = search
     return render_template('search_results.html', **context)
 
-
-# Todo: remove or protect reset token
-@app.route("/resetdb/<token>")
-def resetdb(token=None):
-    if token=='secret42':
-        import create_db
-        create_db.delete_db()
-        create_db.create()
-        return 'Database reset'
-    else:
-        return 'Nope',401
+# @app.route("/resetdb/<token>")
+# def resetdb(token=None):
+#     if token=='secret42':
+#         import create_db
+#         create_db.delete_db()
+#         create_db.create()
+#         return 'Database reset'
+#     else:
+#         return 'Nope',401
 
 if __name__ == '__main__':
     app.run()

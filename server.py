@@ -207,23 +207,9 @@ def search_page():
     query = """SELECT username FROM users WHERE username LIKE (?);"""
     users = query_db(query, (wildcard,))
 
-    # for user in users:
-    # post['content'] = '%s...'%(post['content'][:50])
     context['users'] = encoder.encode_qry(users)
     context['query'] = encoder.encode(search)
     return render_template('search_results.html', **context)
-
-
-# Todo: remove or protect reset token
-@app.route("/resetdb/<token>")
-def resetdb(token=None):
-    if token == 'secret42':
-        import create_db
-        create_db.delete_db()
-        create_db.create()
-        return 'Database reset'
-    else:
-        return 'Nope', 401
 
 
 if __name__ == '__main__':

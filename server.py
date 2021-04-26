@@ -4,6 +4,7 @@ import encoder
 from functools import wraps
 from datetime import timedelta
 import random
+import os
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
@@ -140,13 +141,13 @@ def login():
 
     query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
     account2 = query_db(query, (username, password))
-    print(account)
     pass_match = len(account2) > 0
 
     if user_exists:
         if pass_match:
             session['userid'] = account[0]['userid']
             session['username'] = username
+            session['token'] = str(os.urandom(16))
             session.permanent = True
             return redirect(url_for('index'))
         else:
@@ -179,20 +180,21 @@ def new_post():
         return redirect(url_for('login'))
 
     userid = session['userid']
-    print(userid)
     context = request.context
 
     if request.method == 'GET':
-        return render_template('new_post.html', **context)
+        session['token'] = str(os.urandom(16))
+        return render_template('new_post.html', token=session.get('token'), **context)
 
-    date = datetime.datetime.now().timestamp()
-    title = request.form.get('title')
-    content = request.form.get('content')
+    csrf = request.form.get('csrf')
 
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ((?), (?), (?), (?))"
-    query_db(query, (userid, date, title, content))
-
-    get_db().commit()
+    if csrf == session.get('token'):
+        date = datetime.datetime.now().timestamp()
+        title = request.form.get('title')
+        content = request.form.get('content')
+        query = "INSERT INTO posts (creator, date, title, content) VALUES ((?), (?), (?), (?))"
+        query_db(query, (userid, date, title, content))
+        get_db().commit()
 
     return redirect('/')
 

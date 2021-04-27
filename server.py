@@ -1,22 +1,25 @@
 import datetime
-import sqlite3
-import encoder
-from functools import wraps
-from datetime import timedelta
-import random
 import os
+import random
+import sqlite3
+import time
+from datetime import timedelta
+from functools import wraps
 
+import flask
+from captcha.image import ImageCaptcha
 from flask import Flask, g, render_template, redirect, request, session, url_for
+
+import encoder
 
 app = Flask(__name__)
 
-context = ('local.crt', 'local.key')#certificate and key files
-
+context = ('local.crt', 'local.key')  # certificate and key files
 
 app.secret_key = 't6w9z$C&F)J@NcRf'
 app.permanent_session_lifetime = timedelta(minutes=60)
 app.SESSION_COOKIE_HTTPONLY = True
-app.SESSION_COOKIE_SAMESITE='Strict'
+app.SESSION_COOKIE_SAMESITE = 'Strict'
 
 DATABASE = 'database.sqlite'
 
@@ -68,7 +71,8 @@ def close_connection(exception):
 @std_context
 def index():
     posts = query_db(
-        'SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username,users.USER_PATH_ID FROM posts JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
+        'SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username,users.USER_PATH_ID FROM '
+        'posts JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
 
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
@@ -125,9 +129,47 @@ def users_posts_by_user_path_id(user_path_id=None):
     return render_template('user_posts.html', **context)
 
 
+def generate_captcha_string():
+    char_options = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
+    captcha_string = ''
+    for i in range(8):
+        captcha_string += char_options[random.randint(1, len(char_options))]
+    return captcha_string
+
+
+@app.route("/captcha-check/", methods=['GET', 'POST'])
+@std_context
+def captcha_check():
+    captcha_input = request.form.get('captcha', '')
+    image = ImageCaptcha(width=280, height=90)
+    context = request.context
+    context['filename'] = str(round(time.time())) + '.png'
+    if captcha_input == '':
+        session['data'] = generate_captcha_string()
+        image.write(session['data'], 'static/' + context['filename'])
+        if 'last_captcha_file' in session.keys():
+            os.remove('static/' + session['last_captcha_file'])
+        session['last_captcha_file'] = context['filename']
+        return render_template('captcha.html', **context)
+    if captcha_input.lower() == session['data'].lower():
+        ip = flask.request.remote_addr
+        session.pop(ip)
+        return redirect(url_for('login'))
+    return render_template('captcha.html', **context)
+
+
 @app.route("/login/", methods=['GET', 'POST'])
 @std_context
 def login():
+    ip = flask.request.remote_addr
+    if ip in session.keys():
+        session[ip] = session[ip] + 1
+    else:
+        session[ip] = 1
+
+    if session[ip] >= 3:
+        return redirect(url_for('captcha_check'))
+
     username = request.form.get('username', '')
     password = request.form.get('password', '')
     context = request.context
@@ -143,16 +185,12 @@ def login():
     account2 = query_db(query, (username, password))
     pass_match = len(account2) > 0
 
-    if user_exists:
-        if pass_match:
-            session['userid'] = account[0]['userid']
-            session['username'] = username
-            session['token'] = str(os.urandom(16))
-            session.permanent = True
-            return redirect(url_for('index'))
-        else:
-            # Return wrong password
-            return redirect(url_for('login_fail', error='Wrong password'))
+    if user_exists and pass_match:
+        session['userid'] = account[0]['userid']
+        session['username'] = username
+        session['token'] = str(os.urandom(16))
+        session.permanent = True
+        return redirect(url_for('index'))
     else:
         # Username or password incorrect
         return redirect(url_for('login_fail', error='Username or password incorrect'))

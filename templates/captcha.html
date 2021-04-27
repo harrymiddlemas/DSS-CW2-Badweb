@@ -1,0 +1,14 @@
+{% block content %}
+<form method="POST">
+    <center>
+        <form method="POST" action="/captcha-check/">
+            <p>Are you a robot?</p>
+            <img src="/static/{{filename|safe}}" alt="captcha">
+            <br>
+            <br>
+            <input type="text" name="captcha" id="captcha">
+            <input type="submit">
+        </form>
+    </center>
+</form>
+{% endblock %}

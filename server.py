@@ -144,17 +144,15 @@ def captcha_check():
     image = ImageCaptcha(width=280, height=90)
     context = request.context
     context['filename'] = str(round(time.time())) + '.png'
-    if captcha_input == '':
-        session['data'] = generate_captcha_string()
-        image.write(session['data'], 'static/' + context['filename'])
-        if 'last_captcha_file' in session.keys():
-            os.remove('static/' + session['last_captcha_file'])
-        session['last_captcha_file'] = context['filename']
-        return render_template('captcha.html', **context)
     if captcha_input.lower() == session['data'].lower():
         ip = flask.request.remote_addr
         session.pop(ip)
         return redirect(url_for('login'))
+    for file in os.listdir('static/'):
+        if file.endswith('.png'):
+            os.remove('static/' + file)
+    session['data'] = generate_captcha_string()
+    image.write(session['data'], 'static/' + context['filename'])
     return render_template('captcha.html', **context)
 
 
@@ -167,7 +165,7 @@ def login():
     else:
         session[ip] = 1
 
-    if session[ip] >= 3:
+    if session[ip] > 3:
         return redirect(url_for('captcha_check'))
 
     username = request.form.get('username', '')

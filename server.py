@@ -5,9 +5,11 @@ import sqlite3
 import time
 from datetime import timedelta
 from functools import wraps
+import numpy as np
+import cv2
 
 import flask
-from captcha.image import ImageCaptcha
+from PIL import ImageFont, ImageDraw, Image
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import encoder
@@ -132,19 +134,44 @@ def users_posts_by_user_path_id(user_path_id=None):
 def generate_captcha_string():
     char_options = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
     captcha_string = ''
-    for i in range(8):
+    for i in range(7):
         captcha_string += char_options[random.randint(1, len(char_options))]
     return captcha_string
+
+
+def create_captcha_image(captcha_text, filename):
+    size = random.randint(10, 16)
+    length = random.randint(4, 8)
+    image = np.zeros(shape=(size * 2 + 5, length * size, 3), dtype=np.uint8)
+    image_pil = Image.fromarray(image + 255)
+    draw = ImageDraw.Draw(image_pil)
+    font = ImageFont.truetype(font='arial', size=12)
+    draw.text((5, 10), captcha_text, font=font,
+              fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    draw.line([(random.choice(range(length * size)), random.choice(range((size * 2) + 5))),
+               (random.choice(range(length * size)), random.choice(range((size * 2) + 5)))],
+              width=1, fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    threshold = random.randint(1, 5) / 100
+    img_with_salt = np.array(image_pil)
+    for i in range(img_with_salt.shape[0]):
+        for j in range(img_with_salt.shape[1]):
+            rdn = random.random()
+            if rdn < threshold:
+                img_with_salt[i][j] = random.randint(0, 123)
+            elif rdn > 1 - threshold:
+                img_with_salt[i][j] = random.randint(123, 255)
+    img_blurred_with_salt = cv2.blur(img_with_salt,
+                                     (int(size / random.randint(5, 10)), int(size / random.randint(5, 10))))
+    Image.fromarray(img_blurred_with_salt).save(filename)
 
 
 @app.route("/captcha-check/", methods=['GET', 'POST'])
 @std_context
 def captcha_check():
     captcha_input = request.form.get('captcha', '')
-    image = ImageCaptcha(width=280, height=90)
     context = request.context
     context['filename'] = str(round(time.time())) + '.png'
-    if captcha_input.lower() == session['data'].lower():
+    if captcha_input != '' and captcha_input.lower() == session['data'].lower():
         ip = flask.request.remote_addr
         session.pop(ip)
         return redirect(url_for('login'))
@@ -152,7 +179,7 @@ def captcha_check():
         if file.endswith('.png'):
             os.remove('static/' + file)
     session['data'] = generate_captcha_string()
-    image.write(session['data'], 'static/' + context['filename'])
+    create_captcha_image(session['data'], 'static/' + context['filename'])
     return render_template('captcha.html', **context)
 
 

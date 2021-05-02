@@ -26,21 +26,32 @@ app.SESSION_COOKIE_SAMESITE = 'Strict'
 DATABASE = 'database.sqlite'
 
 
-# Map requests IP to time of last visit
+# Track the times of recent requests from an IP
 ipRequests = {}
 
-# If request from same IP was sent within last 1 second, return true
+# Maximum number of requests per second per IP
+maxRequestRate = 10;
+
+# Enforce rate limiting on each request, blocking if IP exceeds max requests per second.
 @app.before_request
-def rate_limit():
-    # Get request IP
+def new_rate_limit():
     ip = request.remote_addr
+    updated = set()
     if ip in ipRequests:
-        # If IP requested in last .5s, deny access
-        if (datetime.datetime.now() - ipRequests[ip]).seconds < 0.5:
-            ipRequests[ip] = datetime.datetime.now()
-            return redirect(url_for('access_denied'))
-    # Update last request
-    ipRequests[ip] = datetime.datetime.now()
+        requests = ipRequests[ip]
+        # Iterate times of IPs recent requests
+        for time in requests:
+            # If a request was within last second, add to updated set
+            if (datetime.datetime.now() - time).seconds < 1:
+                updated.add(time)
+    # Add current requests time
+    updated.add(datetime.datetime.now())
+    # Update IPs requests set
+    ipRequests[ip] = updated
+    # If set exceeds max rate, deny access
+    if len(updated) > maxRequestRate:
+        return redirect(url_for('access_denied'))
+
 
 def get_db():
     db = getattr(g, '_database', None)

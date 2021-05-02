@@ -26,6 +26,22 @@ app.SESSION_COOKIE_SAMESITE = 'Strict'
 DATABASE = 'database.sqlite'
 
 
+# Map requests IP to time of last visit
+ipRequests = {}
+
+# If request from same IP was sent within last 1 second, return true
+@app.before_request
+def rate_limit():
+    # Get request IP
+    ip = request.remote_addr
+    if ip in ipRequests:
+        # If IP requested in last .5s, deny access
+        if (datetime.datetime.now() - ipRequests[ip]).seconds < 0.5:
+            ipRequests[ip] = datetime.datetime.now()
+            return redirect(url_for('access_denied'))
+    # Update last request
+    ipRequests[ip] = datetime.datetime.now()
+
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -290,6 +306,12 @@ def search_page():
     context['users'] = encoder.encode_qry(users)
     context['query'] = encoder.encode(search)
     return render_template('search_results.html', **context)
+
+
+@app.route("/access_denied/")
+@std_context
+def access_denied():
+    return render_template("access_denied.html")
 
 
 if __name__ == '__main__':

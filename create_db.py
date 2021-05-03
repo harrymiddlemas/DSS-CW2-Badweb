@@ -4,6 +4,7 @@ import random
 import re
 import sqlite3
 import hash
+import update_db
 
 DATABASE = 'database.sqlite'
 
@@ -110,6 +111,8 @@ def delete_db():
     if os.path.exists(DATABASE):
         os.remove(DATABASE)
 
+
 if __name__=='__main__':
     delete_db()
     create()
+    update_db.update()

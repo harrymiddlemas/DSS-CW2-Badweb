@@ -90,9 +90,6 @@ def create_content(db, id, name):
 
     hashed_pass = hash.hash(password + salt)
 
-    print(name)
-    print(password)
-
     c=db.cursor()
     username = '%s%s'%(name.lower()[0], name.lower()[name.index(' ')+1:])
     email = '%s.%s@email.com'%((name.lower()[0], name.lower()[name.index(' ')+1:]))

@@ -3,6 +3,7 @@ import os
 import random
 import re
 import sqlite3
+import hash
 
 DATABASE = 'database.sqlite'
 
@@ -65,7 +66,7 @@ def create():
 
     c=db.cursor()
 
-    c.execute('''CREATE TABLE users (userid integer PRIMARY KEY, username VARCHAR(32), name TEXT, password VARCHAR(8), email TEXT)''')
+    c.execute('''CREATE TABLE users (userid integer PRIMARY KEY, username VARCHAR, name TEXT, hash VARCHAR, salt VARCHAR, email TEXT)''')
     c.execute('''CREATE TABLE posts (creator integer REFERENCES users(userid), date INTEGER, title TEXT, content TEXT)''')
     c.execute('''CREATE INDEX user_username on users (username)''')
     c.execute('''CREATE INDEX user_posts on posts (creator,date)''')
@@ -77,12 +78,25 @@ def create():
         id+=1
     db.commit()
 
+
 def create_content(db, id, name):
-    password='password'
+    pass_char_options = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%&*@#-_+=?'
+    password = ''
+    salt = ''
+    for i in range(16):
+        password += pass_char_options[random.randint(1, len(pass_char_options)-1)]
+    for i in range(8):
+        salt += pass_char_options[random.randint(1, len(pass_char_options)-1)]
+
+    hashed_pass = hash.hash(password + salt)
+
+    print(name)
+    print(password)
+
     c=db.cursor()
     username = '%s%s'%(name.lower()[0], name.lower()[name.index(' ')+1:])
     email = '%s.%s@email.com'%((name.lower()[0], name.lower()[name.index(' ')+1:]))
-    c.execute('INSERT INTO users (userid, username, name, password, email) VALUES (?,?,?,?,?)',(id,username,name,password,email))
+    c.execute('INSERT INTO users (userid, username, name, hash, salt, email) VALUES (?,?,?,?,?,?)',(id,username,name,hashed_pass,salt,email))
     date = datetime.datetime.now() - datetime.timedelta(28)
     
     for i in range( random.randrange(4,8) ):
@@ -93,6 +107,7 @@ def create_content(db, id, name):
         c.execute('INSERT INTO posts (creator,date,title,content) VALUES (?,?,?,?)',(
             id, date.timestamp(), title, content
         ))
+
 
 def delete_db():
     if os.path.exists(DATABASE):

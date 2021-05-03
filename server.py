@@ -7,6 +7,7 @@ from datetime import timedelta
 from functools import wraps
 import numpy as np
 import cv2
+import hash
 
 import flask
 from PIL import ImageFont, ImageDraw, Image
@@ -162,7 +163,7 @@ def generate_captcha_string():
     char_options = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
     captcha_string = ''
     for i in range(7):
-        captcha_string += char_options[random.randint(1, len(char_options))]
+        captcha_string += char_options[random.randint(1, len(char_options)-1)]
     return captcha_string
 
 
@@ -233,9 +234,14 @@ def login():
     account = query_db(query, (username,))
     user_exists = len(account) > 0
 
-    query = "SELECT userid FROM users WHERE username=(?) AND password=(?)"
-    account2 = query_db(query, (username, password))
-    pass_match = len(account2) > 0
+    pass_match = False
+    query = "SELECT salt FROM users WHERE username=(?)"
+    salt = query_db(query, (username,))
+    if len(salt) > 0:
+        hashed = hash.hash(password + salt[0]['salt'])
+        query = "SELECT userid FROM users WHERE username=(?) AND hash=(?)"
+        account2 = query_db(query, (username, hashed))
+        pass_match = len(account2) > 0
 
     if user_exists and pass_match:
         session['userid'] = account[0]['userid']

@@ -316,7 +316,10 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    wildcard = '%' + search + '%'
+    wildcard = ''
+
+    if search != '':
+        wildcard = '%' + search + '%'
 
     query = """SELECT username FROM users WHERE username LIKE (?);"""
     users = query_db(query, (wildcard,))

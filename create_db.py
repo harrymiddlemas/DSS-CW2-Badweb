@@ -88,7 +88,7 @@ def create_content(db, id, name):
         password += pass_char_options[random.randint(1, len(pass_char_options)-1)]
     for i in range(8):
         salt += pass_char_options[random.randint(1, len(pass_char_options)-1)]
-
+    
     hashed_pass = hash.hash(password + salt)
 
     c=db.cursor()

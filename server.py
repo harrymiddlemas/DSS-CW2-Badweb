@@ -142,12 +142,12 @@ def users_posts(uname=None):
 @app.route("/user_path_id/<user_path_id>/")
 @std_context
 def users_posts_by_user_path_id(user_path_id=None):
-    cid = query_db('SELECT userid FROM users WHERE USER_PATH_ID=%s' % (user_path_id))
+    cid = query_db('SELECT userid FROM users WHERE USER_PATH_ID=(?)', (user_path_id,))
     if len(cid) < 1:
         return 'No such user'
 
-    query = 'SELECT date,title,content, USER_PATH_ID FROM POSTS NATURAL JOIN USERS WHERE USER_PATH_ID=%s ORDER BY ' \
-            'date DESC' % user_path_id
+    query = 'SELECT date,title,content, USER_PATH_ID FROM POSTS NATURAL JOIN USERS WHERE USER_PATH_ID=(?) ORDER BY ' \
+            'date DESC'
 
     context = request.context
 
@@ -155,7 +155,7 @@ def users_posts_by_user_path_id(user_path_id=None):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
-    results = query_db(query)
+    results = query_db(query, (user_path_id,))
     context['posts'] = map(fix, encoder.encode_qry(results))
     return render_template('user_posts.html', **context)
 
@@ -247,13 +247,12 @@ def login():
     if user_exists and pass_match:
         session['userid'] = account[0]['userid']
         session['email'] = email
-        session['username'] = account[0]['username']
         session['token'] = str(os.urandom(16))
         session.permanent = True
         return redirect(url_for('index'))
     else:
         # email or password incorrect
-        return redirect(url_for('login_fail', error='email or password incorrect'))
+        return redirect(url_for('login_fail', error=encoder.encode('Email or password incorrect.')))
 
 
 @app.route("/loginfail/")

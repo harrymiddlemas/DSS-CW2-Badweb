@@ -313,15 +313,16 @@ def reset():
 def search_page():
     context = request.context
     search = request.args.get('s', '')
+    if search != '':
+        wildcard = '%' + search + '%'
 
-    wildcard = '%' + search + '%'
+        query = """SELECT username FROM users WHERE username LIKE (?);"""
+        users = query_db(query, (wildcard,))
 
-    query = """SELECT username FROM users WHERE username LIKE (?);"""
-    users = query_db(query, (wildcard,))
-
-    context['users'] = encoder.encode_qry(users)
-    context['query'] = encoder.encode(search)
-    return render_template('search_results.html', **context)
+        context['users'] = encoder.encode_qry(users)
+        context['query'] = encoder.encode(search)
+        return render_template('search_results.html', **context)
+    return redirect('/')
 
 
 @app.route("/access_denied/")

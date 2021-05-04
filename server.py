@@ -316,7 +316,7 @@ def search_page():
     if search != '':
         wildcard = '%' + search + '%'
 
-        query = """SELECT USER_PATH_ID FROM users WHERE username LIKE (?);"""
+        query = """SELECT username FROM users WHERE username LIKE (?);"""
         users = query_db(query, (wildcard,))
 
         context['users'] = encoder.encode_qry(users)

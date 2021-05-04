@@ -82,7 +82,7 @@ def std_context(f):
         request.context = context
         if 'userid' in session:
             context['loggedin'] = True
-            context['username'] = session['username']
+            context['email'] = session['email']
         else:
             context['loggedin'] = False
         return f(*args, **kwargs)
@@ -119,22 +119,23 @@ def index():
 @std_context
 def users_posts(uname=None):
     cid = query_db('SELECT userid FROM users WHERE username=(?)', (uname,))
-    if len(cid) < 1:
-        return 'No such user'
+    # if len(cid) < 1:
+    #     return 'No such user'
 
-    cid = cid[0]['userid']
+    # cid = cid[0]['userid']
 
-    if 'userid' in session.keys() and session['userid'] == cid:
-        query = 'SELECT date,title,content FROM posts WHERE creator=(?) ORDER BY date DESC'
+    # if 'userid' in session.keys() and session['userid'] == cid:
+    #     query = 'SELECT date,title,content FROM posts WHERE creator=(?) ORDER BY date DESC'
 
-        context = request.context
+    #     context = request.context
 
-        def fix(item):
-            item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
-            return item
+    #     def fix(item):
+    #         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
+    #         return item
 
-        context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
-        return render_template('user_posts.html', **context)
+    #     context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
+    #     return render_template('user_posts.html', **context)
+
     return 'Access Denied'
 
 
@@ -223,35 +224,36 @@ def login():
     if session[ip] > 3:
         return redirect(url_for('captcha_check'))
 
-    username = request.form.get('username', '')
+    email = request.form.get('username', '')
     password = request.form.get('password', '')
     context = request.context
 
-    if len(username) < 1 and len(password) < 1:
+    if len(email) < 1 and len(password) < 1:
         return render_template('login.html', **context)
 
-    query = "SELECT userid FROM users WHERE username=(?)"
-    account = query_db(query, (username,))
+    query = "SELECT userid FROM users WHERE email=(?)"
+    account = query_db(query, (email,))
     user_exists = len(account) > 0
 
     pass_match = False
-    query = "SELECT salt FROM users WHERE username=(?)"
-    salt = query_db(query, (username,))
+    query = "SELECT salt FROM users WHERE email=(?)"
+    salt = query_db(query, (email,))
     if len(salt) > 0:
         hashed = hash.hash(password + salt[0]['salt'])
-        query = "SELECT userid FROM users WHERE username=(?) AND hash=(?)"
-        account2 = query_db(query, (username, hashed))
+        query = "SELECT userid FROM users WHERE email=(?) AND hash=(?)"
+        account2 = query_db(query, (email, hashed))
         pass_match = len(account2) > 0
 
     if user_exists and pass_match:
         session['userid'] = account[0]['userid']
-        session['username'] = username
+        session['email'] = email
+        session['username'] = account[0]['username']
         session['token'] = str(os.urandom(16))
         session.permanent = True
         return redirect(url_for('index'))
     else:
-        # Username or password incorrect
-        return redirect(url_for('login_fail', error='Username or password incorrect'))
+        # email or password incorrect
+        return redirect(url_for('login_fail', error='email or password incorrect'))
 
 
 @app.route("/loginfail/")

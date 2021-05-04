@@ -115,30 +115,6 @@ def index():
     return render_template('index.html', **context)
 
 
-@app.route("/<uname>/")
-@std_context
-def users_posts(uname=None):
-    cid = query_db('SELECT userid FROM users WHERE username=(?)', (uname,))
-    if len(cid) < 1:
-        return 'No such user'
-
-    cid = cid[0]['userid']
-
-    if 'userid' in session.keys() and session['userid'] == cid:
-        query = 'SELECT date,title,content FROM posts WHERE creator=(?) ORDER BY date DESC'
-
-        context = request.context
-
-        def fix(item):
-            item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
-            return item
-
-        context['posts'] = map(fix, encoder.encode_qry(query_db(query)))
-        return render_template('user_posts.html', **context)
-
-    return 'Access Denied'
-
-
 @app.route("/user_path_id/<user_path_id>/")
 @std_context
 def users_posts_by_user_path_id(user_path_id=None):
